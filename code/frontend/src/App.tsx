@@ -9,11 +9,12 @@ function App() {
 
     const view = new EditorView({
       parent: editorRef.current,
-      doc: '...',
       extensions: [
         basicSetup,
         EditorView.theme({
           '&': { height: '320px' },
+          '.cm-gutters': { display: 'none' },
+          '.cm-activeLine, .cm-activeLineGutter': { backgroundColor: 'transparent' },
         }),
       ],
     })
