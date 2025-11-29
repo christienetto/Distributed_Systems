@@ -1,19 +1,22 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import CodeMirror from '@uiw/react-codemirror'
-
-const fetchInitialDocument = async () => {
-  // todo: replace with a real GET request to server
-  await new Promise((resolve) => setTimeout(resolve, 1000))
-  return 'Initial document text from server'
-}
+import { fetchInitialDocument, connectSocket } from './api'
 
 function App() {
   const [doc, setDoc] = useState('')
+  const socketRef = useRef<WebSocket | null>(null)
 
   useEffect(() => {
     void fetchInitialDocument().then((text) => {
       setDoc(text)
     })
+
+    const socket = connectSocket(setDoc)
+    socketRef.current = socket
+
+    return () => {
+      socket.close()
+    }
   }, [])
 
   return (
@@ -30,6 +33,12 @@ function App() {
               highlightActiveLine: false,
               highlightActiveLineGutter: false,
               foldGutter: false,
+            }}
+            onChange={(value) => {
+              setDoc(value)
+              if (socketRef.current?.readyState === WebSocket.OPEN) {
+                socketRef.current.send(value)
+              }
             }}
           />
         </div>
