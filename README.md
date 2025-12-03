@@ -1,33 +1,39 @@
-# Distributed_Systems
-A Note Taking app the handles consistency.
+# Distributed Text Exitor
 
+## Virtual Environment
 
-for this you need to have docker install and running so that you can excecute the following command: 
+### Prerequisites
 
-    docker run -d -p 27017:27017 --name mongodb mongo:7
+Install Multipass [here](https://canonical.com/multipass), or via Homebrew:
 
-## New python server instructions to test MongoDB connection
-
-From you repository root, run:
-
+```bash
+brew install --cask multipass
 ```
-docker compose up --build
-```
-This builds the FastAPI server, starts MongoDB in a separate container, 
-connects both services inside Docker network and exposes the server at http://localhost:8000
-Once the containers are running, open:
 
+### Launch
+
+To launch virtual machines, run:
+
+```bash
+./infra/provision.sh
 ```
-http://localhost:8000/test-db
+
+Note that this may take a while. Access the app via the printed URL once everything is ready.
+
+### Teardown
+
+To stop and delete all VMs, run:
+
+```bash
+./infra/teardown.sh
 ```
-If you see JSON output like this:
+
+## Local Development
+
+Running the VMs for development is probably too slow. Instead, you can run everything with Docker:
+
+```bash
+docker compose up --build # Access the app in http://localhost:8000
 ```
-{
-  "status": "Connected to MongoDB",
-  "inserted_id": "<some-id>",
-  "notes": [
-    { "title": "Test Note", "content": "This is a test note." }
-  ]
-}
-```
-The connection is working
+
+Or, run frontend separately, with hot reload (see `code/frontend/README.md`).
