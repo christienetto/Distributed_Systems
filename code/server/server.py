@@ -1,13 +1,25 @@
+from fastapi import FastAPI, WebSocket
 import os
 from pathlib import Path
-
-from fastapi import FastAPI
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from pymongo import MongoClient
+from fastapi.middleware.cors import CORSMiddleware
 
 app = FastAPI()
 
+origins = [
+    "http://localhost:5173",
+    "http://127.0.0.1:5173",
+]
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=origins,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 mongo_uri = os.getenv("MONGODB_URI", "mongodb://mongodb:27017")
 client = MongoClient(mongo_uri)
 db = client["mydatabase"]
@@ -32,6 +44,15 @@ def test_db():
         "inserted_id": str(result.inserted_id),
         "notes": all_notes
     }
+
+@app.websocket("/ws")
+async def websocket_endpoint(websocket: WebSocket):
+    await websocket.accept()
+    all_notes = list(notes.find({}, {"_id": 0}))
+    await websocket.send_json({"notes": all_notes})
+
+    while True:
+        await websocket.receive_text()
 
 @app.get("/")
 def serve_frontend():
