@@ -1,11 +1,21 @@
+import os
+from pathlib import Path
+
 from fastapi import FastAPI
+from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
 from pymongo import MongoClient
 
 app = FastAPI()
 
-client = MongoClient("mongodb://mongodb:27017")
+mongo_uri = os.getenv("MONGODB_URI", "mongodb://mongodb:27017")
+client = MongoClient(mongo_uri)
 db = client["mydatabase"]
 notes = db["notes"]
+
+# Serve frontend static files
+static_dir = Path(__file__).parent / "static"
+app.mount("/assets", StaticFiles(directory=static_dir / "assets"), name="assets")
 
 @app.get("/test-db")
 def test_db():
@@ -23,4 +33,6 @@ def test_db():
         "notes": all_notes
     }
 
-
+@app.get("/")
+def serve_frontend():
+    return FileResponse(static_dir / "index.html")
