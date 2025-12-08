@@ -16,8 +16,15 @@ export const connectSocket = (onMessage: (value: string) => void) => {
     try {
       const msg = JSON.parse(event.data);
 
-      if (msg.note) {
-        const text = `Title: ${msg.note.title}\nContent:\n${msg.note.content}`
+      if (msg.type === 'init' && msg.notes) {
+        const text = msg.notes
+          .map((n: any) => `Title: ${n.title}\nContent: ${n.content}`)
+          .join("\n\n");
+        onMessage(text);
+      } else if (msg.type === 'text_change') {
+        onMessage(msg.content);
+      } else if (msg.type === 'note_saved') {
+        const text = `Title: ${msg.note.title}\nContent: ${msg.note.content}`;
         onMessage(text);
       }
     } catch (err) {
