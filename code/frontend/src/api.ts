@@ -1,10 +1,9 @@
 export const fetchInitialDocument = async () => {
   const response = await fetch("http://127.0.0.1:8000/test-db")
   const data = await response.json()
-  if (data.notes) {
-    return data.notes
-      .map((n: any) => `Title: ${n.title}\nContent: ${n.content}`)
-      .join("\n\n")
+  
+  if (data.note) {
+    return `Title: ${data.note.title}\nContent: ${data.note.content}`;
   }
 
   return ""
@@ -17,11 +16,8 @@ export const connectSocket = (onMessage: (value: string) => void) => {
     try {
       const msg = JSON.parse(event.data);
 
-      if (msg.notes) {
-        const text = msg.notes
-          .map((n: any) => `Title: ${n.title}\nContent: ${n.content}`)
-          .join("\n\n");
-
+      if (msg.note) {
+        const text = `Title: ${msg.note.title}\nContent:\n${msg.note.content}`
         onMessage(text);
       }
     } catch (err) {

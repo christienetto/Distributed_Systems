@@ -29,27 +29,41 @@ notes = db["notes"]
 static_dir = Path(__file__).parent / "static"
 app.mount("/assets", StaticFiles(directory=static_dir / "assets"), name="assets")
 
+
+SHARED_NOTE_ID = "shared_note"
+
+def get_or_create_shared_note():
+
+    note = notes.find_one({"_id": SHARED_NOTE_ID}, {"_id": 0})
+    if not note:
+        new_note = {
+            "_id": SHARED_NOTE_ID,
+            "title": "Shared Note",
+            "content": "Write something..."
+        }
+        notes.insert_one(new_note)
+
+        return {
+            "title": new_note["title"],
+            "content": new_note["content"]
+        }
+
+    return note
+
 @app.get("/test-db")
 def test_db():
-    note = {
-        "title": "Test Note",
-        "content": "This is a test note."
-    }
-
-    result = notes.insert_one(note)
-    all_notes = list(notes.find({}, {"_id": 0}))
-
+    
+    note = get_or_create_shared_note()
     return {
         "status": "Connected to MongoDB",
-        "inserted_id": str(result.inserted_id),
-        "notes": all_notes
+        "note": note
     }
 
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):
     await websocket.accept()
-    all_notes = list(notes.find({}, {"_id": 0}))
-    await websocket.send_json({"notes": all_notes})
+    note = get_or_create_shared_note()
+    await websocket.send_json({"note": note})
 
     while True:
         await websocket.receive_text()
