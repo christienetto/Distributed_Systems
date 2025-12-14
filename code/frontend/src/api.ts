@@ -3,7 +3,7 @@ export const fetchInitialDocument = async () => {
   const data = await response.json()
   
   if (data.note) {
-    return `Title: ${data.note.title}\nContent: ${data.note.content}`;
+    return data.note.content;
   }
 
   return ""
@@ -16,16 +16,13 @@ export const connectSocket = (onMessage: (value: string) => void) => {
     try {
       const msg = JSON.parse(event.data);
 
-      if (msg.type === 'init' && msg.notes) {
-        const text = msg.notes
-          .map((n: any) => `Title: ${n.title}\nContent: ${n.content}`)
-          .join("\n\n");
-        onMessage(text);
+      if (msg.type === 'init' && msg.note) {
+        onMessage(msg.note.content);
       } else if (msg.type === 'text_change') {
         onMessage(msg.content);
-      } else if (msg.type === 'note_saved') {
-        const text = `Title: ${msg.note.title}\nContent: ${msg.note.content}`;
-        onMessage(text);
+      } else if (msg.type === 'db_change') {
+        onMessage(msg.note.content);
+        console.log(`Database ${msg.operation} detected`);
       }
     } catch (err) {
       console.error("Invalid JSON message:", event.data);
