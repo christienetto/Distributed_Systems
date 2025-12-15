@@ -41,7 +41,9 @@ install_docker() {
 
 copy_compose() {
   local name="$1"
-  multipass exec "$name" -- bash -lc "mkdir -p \"$(dirname "$REMOTE_COMPOSE")\""
+  local remote_dir
+  remote_dir="$(dirname "$REMOTE_COMPOSE")"
+  multipass exec "$name" -- bash -lc "mkdir -p '$remote_dir'"
   multipass transfer "$COMPOSE_PATH" "$name:$REMOTE_COMPOSE"
 }
 
@@ -55,7 +57,11 @@ copy_code() {
 start_database() {
   local name="$1"
   echo "Starting MongoDB on $name..."
-  multipass exec "$name" -- bash -lc "cd /home/ubuntu && sudo docker compose -f \"$REMOTE_COMPOSE\" up -d mongodb"
+  multipass exec "$name" -- bash -lc "
+    cd /home/ubuntu
+    MONGO_REPLICA_HOST=\$(hostname -I | awk '{print \$1\":27017\"}')
+    sudo env MONGO_REPLICA_HOST=\"\$MONGO_REPLICA_HOST\" docker compose -f \"$REMOTE_COMPOSE\" up -d mongodb mongo-init-replica
+  "
 }
 
 start_backend() {
@@ -64,10 +70,15 @@ start_backend() {
   echo "Starting backend on $name (DB at $database_ip)..."
   multipass exec "$name" -- bash -lc "
     cd /home/ubuntu
-    sudo env MONGODB_URI=mongodb://$database_ip:27017 docker compose -f \"$REMOTE_COMPOSE\" up -d --force-recreate server
+    sudo env \
+      MONGODB_URI=mongodb://$database_ip:27017/?replicaSet=rs0 \
+      VITE_API_BASE_URL=\${VITE_API_BASE_URL:-} \
+      VITE_WS_BASE=\${VITE_WS_BASE:-} \
+      docker compose -f \"$REMOTE_COMPOSE\" up -d --force-recreate server
   "
 }
 
+# The app can be scaled horizontally by adding more backend servers in the upstream backend block.
 start_loadbalancer() {
   local name="$1"
   local backend1_ip="$2"
@@ -83,9 +94,13 @@ server {
     listen 80;
     location / {
         proxy_pass http://backend;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade \$http_upgrade;
+        proxy_set_header Connection "upgrade";
         proxy_set_header Host \$host;
         proxy_set_header X-Real-IP \$remote_addr;
         proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_read_timeout 300s;
     }
 }
 EOF

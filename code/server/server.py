@@ -24,7 +24,7 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-mongo_uri = os.getenv("MONGODB_URI", "mongodb://mongodb:27017")
+mongo_uri = os.getenv("MONGODB_URI", "mongodb://mongodb:27017/?replicaSet=rs0")
 client = MongoClient(mongo_uri)
 db = client["mydatabase"]
 notes = db["notes"]
@@ -33,6 +33,7 @@ notes = db["notes"]
 active_connections: List[WebSocket] = []
 
 change_stream_task = None
+main_loop = None # Fixes “no current event loop in thread” error
 
 # Serve frontend static files
 static_dir = Path(__file__).parent / "static"
@@ -84,6 +85,7 @@ async def broadcast_to_all(message: dict, sender: WebSocket = None):
             active_connections.remove(dead_conn)
 
 def watch_database_changes():
+    global main_loop
     try:
         # Watch for changes in the notes collection
         with notes.watch([
@@ -104,18 +106,19 @@ def watch_database_changes():
                         }
                         
                         # Schedule the broadcast in the main event loop
-                        asyncio.run_coroutine_threadsafe(
-                            broadcast_to_all(message), 
-                            asyncio.get_event_loop()
-                        )
+                        if main_loop is not None:
+                            asyncio.run_coroutine_threadsafe(
+                                broadcast_to_all(message),
+                                main_loop
+                            )
     except Exception as e:
         print(f"Change stream error: {e}")
 
 async def start_change_stream():
-    global change_stream_task
+    global change_stream_task, main_loop
     if change_stream_task is None:
-        loop = asyncio.get_event_loop()
-        change_stream_task = loop.run_in_executor(None, watch_database_changes)
+        main_loop = asyncio.get_running_loop()
+        change_stream_task = main_loop.run_in_executor(None, watch_database_changes)
 
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):

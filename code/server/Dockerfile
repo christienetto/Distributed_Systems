@@ -1,6 +1,10 @@
 # Build frontend
 FROM node:22 AS frontend-builder
 WORKDIR /app/frontend
+ARG VITE_API_BASE_URL=
+ARG VITE_WS_BASE=
+ENV VITE_API_BASE_URL=$VITE_API_BASE_URL
+ENV VITE_WS_BASE=$VITE_WS_BASE
 COPY code/frontend/package*.json ./
 RUN npm ci
 COPY code/frontend ./
